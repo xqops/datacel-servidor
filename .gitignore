@@ -1,0 +1,10 @@
+﻿node_modules/
+.env
+logs/
+dist/
+painel/dados.json
+painel/cloudflared.yml
+bots/*
+!bots/.gitkeep
+sites/*
+!sites/meu-site/

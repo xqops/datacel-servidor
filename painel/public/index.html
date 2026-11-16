@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>datacel//srv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0c; --bg2: #151513; --bg3: #1d1c1a;
+    --linha: #2c2b27; --linha2: #3a3833;
+    --texto: #d8d4c6; --dim: #8b867a; --fraco: #5a5750;
+    --ambar: #ffb000;
+    --verde: #8fd16a; --vermelho: #ff6b5b;
+    --mono: "IBM Plex Mono", Consolas, "Cascadia Mono", monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 13.5px/1.6 var(--mono); display: flex; flex-direction: column; overflow: hidden; }
+  ::selection { background: var(--ambar); color: #000; }
+  a { color: var(--texto); text-decoration: underline; text-decoration-color: var(--fraco); text-underline-offset: 3px; }
+  a:hover { color: var(--ambar); text-decoration-color: var(--ambar); }
+  b { font-weight: 600; color: #f1ede0; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--linha2); }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .dim { color: var(--dim); }
+  .fraco { color: var(--fraco); }
+  .ambar { color: var(--ambar); }
+  .verde { color: var(--verde); }
+  .vermelho { color: var(--vermelho); }
+
+  /* ---------- barra de título ---------- */
+  #barra { display: flex; align-items: center; height: 34px; border-bottom: 1px solid var(--linha); padding-left: 14px; flex: none; user-select: none; white-space: nowrap; overflow: hidden; }
+  body.app #barra { -webkit-app-region: drag; }
+  #barra .marca { font-weight: 600; letter-spacing: .04em; }
+  #barra .marca i { font-style: normal; color: var(--ambar); animation: piscar 1.1s steps(1) infinite; }
+  @keyframes piscar { 50% { opacity: 0; } }
+  #barra .info { margin-left: 22px; color: var(--dim); display: flex; gap: 18px; overflow: hidden; }
+  #barra .info span { flex: none; }
+  #controles { margin-left: auto; display: none; height: 100%; -webkit-app-region: no-drag; }
+  body.app #controles { display: flex; }
+  #controles button { width: 46px; height: 100%; border: 0; background: none; color: var(--dim); font: inherit; cursor: pointer; }
+  #controles button:hover { background: var(--bg3); color: var(--texto); }
+  #controles button.fechar:hover { background: var(--vermelho); color: #000; }
+
+  /* ---------- abas ---------- */
+  #abas { display: flex; align-items: center; border-bottom: 1px solid var(--linha); flex: none; padding: 0 6px; overflow-x: auto; }
+  #abas button { border: 0; background: none; font: inherit; color: var(--dim); padding: 8px 12px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  #abas button kbd { color: var(--fraco); margin-right: 6px; font: inherit; }
+  #abas button:hover { color: var(--texto); }
+  #abas button.ativo { color: var(--ambar); border-bottom-color: var(--ambar); }
+  #abas button.ativo kbd { color: var(--ambar); }
+  #abas .direita { margin-left: auto; padding: 0 8px; white-space: nowrap; }
+
+  /* ---------- conteúdo ---------- */
+  main { flex: 1; overflow: auto; padding: 22px 24px 40px; }
+  .cabeca { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .cabeca h1 { margin: 0; font-size: 13.5px; font-weight: 600; }
+  .cabeca h1::before { content: "## "; color: var(--ambar); }
+  .cabeca p { margin: 0; color: var(--dim); flex: 1; min-width: 240px; }
+  .cabeca .acoes { margin-left: auto; display: flex; gap: 4px; }
+
+  .tabela-wrap { overflow-x: auto; border: 1px solid var(--linha); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; color: var(--fraco); text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px; padding: 8px 14px; border-bottom: 1px solid var(--linha); white-space: nowrap; background: var(--bg2); }
+  td { padding: 9px 14px; border-bottom: 1px dashed var(--linha); white-space: nowrap; vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--bg2); }
+  td.acoes-linha { text-align: right; width: 1%; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th.num { text-align: right; }
+  .vazio-linha td { color: var(--dim); padding: 28px 14px; text-align: center; white-space: normal; }
+
+  /* ---------- comandos ---------- */
+  .cmd { border: 0; background: none; font: inherit; color: var(--texto); padding: 1px 4px; cursor: pointer; white-space: nowrap; text-decoration: none; }
+  .cmd::before { content: "["; color: var(--fraco); }
+  .cmd::after { content: "]"; color: var(--fraco); }
+  .cmd.forte { color: var(--ambar); }
+  /* Fica depois de .cmd.forte de propósito: no hover o texto precisa ficar preto sobre o âmbar. */
+  .cmd:hover, .cmd:focus-visible { background: var(--ambar); color: #000; outline: none; text-decoration: none; }
+  .cmd:hover::before, .cmd:hover::after, .cmd:focus-visible::before, .cmd:focus-visible::after { color: #000; }
+  .cmd.perigo:hover, .cmd.perigo:focus-visible { background: var(--vermelho); }
+  .cmd:disabled { opacity: .4; pointer-events: none; }
+  .cmd kbd { font: inherit; text-decoration: underline; }
+
+  .st::before { margin-right: 6px; }
+  .st.on { color: var(--verde); } .st.on::before { content: "●"; }
+  .st.off { color: var(--fraco); } .st.off::before { content: "○"; }
+  .st.err { color: var(--vermelho); } .st.err::before { content: "✕"; }
+  .st.warn { color: var(--ambar); } .st.warn::before { content: "▲"; }
+
+  /* ---------- consumo ---------- */
+  .usos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 12px; margin-bottom: 28px; }
+  .uso { border: 1px solid var(--linha); padding: 12px 16px; }
+  .uso .rot { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; display: flex; justify-content: space-between; }
+  .uso .grande { font-size: 22px; font-weight: 600; margin: 2px 0 6px; }
+  .uso .grande small { font-size: 13px; color: var(--dim); font-weight: 400; margin-left: 8px; }
+  .spark { color: var(--ambar); font-family: Consolas, var(--mono); line-height: 1; letter-spacing: 0; white-space: pre; }
+  .uso .spark { font-size: 18px; display: block; overflow: hidden; }
+
+  /* ---------- domínio ---------- */
+  .passos { border: 1px solid var(--linha); }
+  .passo { display: grid; grid-template-columns: 74px 1fr; padding: 16px 18px 16px 10px; }
+  .passo + .passo { border-top: 1px dashed var(--linha); }
+  .passo .marca-passo { color: var(--fraco); }
+  .passo.feito .marca-passo { color: var(--verde); }
+  .passo.atual .marca-passo { color: var(--ambar); }
+  .passo h2 { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; }
+  .passo.bloqueado h2 { color: var(--dim); }
+  .passo p { margin: 0 0 10px; color: var(--dim); }
+  .passo ol { margin: 0 0 12px; padding-left: 0; list-style: none; counter-reset: p; }
+  .passo ol li { counter-increment: p; color: var(--dim); padding-left: 32px; position: relative; margin-bottom: 4px; }
+  .passo ol li::before { content: counter(p, decimal-leading-zero) "."; position: absolute; left: 0; color: var(--fraco); }
+  .aviso-bloco { border-left: 2px solid var(--ambar); background: var(--bg2); padding: 10px 14px; margin: 0 0 14px; color: var(--texto); white-space: normal; }
+  .aviso-bloco strong { color: var(--ambar); font-weight: 600; }
+  .linha-sub { display: flex; gap: 14px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--linha); }
+  .linha-sub:last-child { border-bottom: 0; }
+  .linha-sub .n { width: 160px; flex: none; overflow: hidden; text-overflow: ellipsis; }
+  .linha-sub .v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- configurações ---------- */
+  .opcao-cfg { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px dashed var(--linha); cursor: pointer; user-select: none; }
+  .opcao-cfg:last-child { border-bottom: 0; }
+  .opcao-cfg:hover { background: var(--bg2); }
+  .opcao-cfg .caixa { color: var(--ambar); width: 30px; flex: none; }
+  .opcao-cfg small { display: block; color: var(--dim); font-size: 12.5px; }
+
+  /* ---------- formulários ---------- */
+  .prompt { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--linha2); padding: 6px 0; }
+  .prompt:focus-within { border-bottom-color: var(--ambar); }
+  .prompt::before { content: ">"; color: var(--ambar); }
+  .prompt input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: var(--texto); font: inherit; caret-color: var(--ambar); padding: 0; }
+  .prompt .sufixo { color: var(--dim); }
+  .campo { margin-bottom: 16px; }
+  .campo label { display: block; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+  .campo .ajuda { color: var(--fraco); font-size: 12.5px; margin-top: 6px; white-space: normal; }
+  .radio { display: flex; gap: 10px; padding: 6px 0; cursor: pointer; color: var(--dim); }
+  .campo label.radio { text-transform: none; letter-spacing: 0; font-size: inherit; }
+  .radio input { display: none; }
+  .radio .caixa::before { content: "( )"; color: var(--fraco); }
+  .radio:has(input:checked) { color: var(--texto); }
+  .radio:has(input:checked) .caixa::before { content: "(•)"; color: var(--ambar); }
+  .radio.check .caixa::before { content: "[ ]"; }
+  .radio.check:has(input:checked) .caixa::before { content: "[x]"; }
+
+  /* ---------- janelas ---------- */
+  dialog { border: 1px solid var(--linha2); background: var(--bg); color: var(--texto); padding: 0; width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 60px); font: inherit; box-shadow: 0 0 0 100vmax rgb(0 0 0 / .55); }
+  dialog.largo { width: min(1000px, calc(100vw - 32px)); }
+  dialog::backdrop { background: transparent; }
+  .jan-topo { display: flex; align-items: center; background: var(--ambar); color: #000; padding: 0 0 0 12px; height: 30px; font-weight: 600; }
+  .jan-topo.perigo { background: var(--vermelho); }
+  .jan-topo .titulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .jan-topo button { border: 0; background: none; font: inherit; color: #000; height: 100%; padding: 0 12px; cursor: pointer; font-weight: 600; }
+  .jan-topo button:hover { background: rgb(0 0 0 / .15); }
+  .jan-corpo { padding: 18px; overflow: auto; max-height: calc(100vh - 150px); }
+  .jan-corpo > p { margin: 0 0 14px; color: var(--dim); white-space: normal; }
+  .jan-rodape { display: flex; justify-content: flex-end; gap: 6px; padding: 10px 14px; border-top: 1px dashed var(--linha); }
+  .ferramentas { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .ferramentas .direita { margin-left: auto; }
+
+  /* ---------- árvore de arquivos ---------- */
+  .zona { position: relative; border: 1px solid var(--linha); min-height: 240px; padding: 8px 0; }
+  .zona.sobre { border-color: var(--ambar); }
+  .zona.sobre::after { content: "-- solte para enviar --"; position: absolute; inset: 0; display: grid; place-items: center; background: rgb(13 13 12 / .9); color: var(--ambar); }
+  .no { display: flex; align-items: center; padding: 1px 14px; white-space: pre; }
+  .no:hover { background: var(--bg2); }
+  .no .ramo { color: var(--fraco); }
+  .no .nome-arq.pasta { color: var(--ambar); }
+  .no .nome-arq.pasta::after { content: "/"; }
+  .no .nome-arq.editavel { cursor: pointer; }
+  .no .nome-arq.editavel:hover { background: var(--ambar); color: #000; }
+  .no .nome-arq.segredo { color: var(--vermelho); }
+  .no .tam { margin-left: auto; color: var(--fraco); padding-left: 20px; }
+  .no .cmd { visibility: hidden; margin-left: 10px; }
+  .no:hover .cmd { visibility: visible; }
+  .raiz-arvore { padding: 1px 14px 6px; color: var(--dim); }
+
+  /* ---------- editor e terminal ---------- */
+  .editor { display: flex; border: 1px solid var(--linha); height: 62vh; }
+  .editor .numeros { padding: 10px 10px 10px 12px; text-align: right; color: var(--fraco); user-select: none; overflow: hidden; white-space: pre; min-width: 50px; border-right: 1px solid var(--linha); background: var(--bg2); }
+  .editor textarea { flex: 1; border: 0; outline: none; resize: none; background: none; color: var(--texto); font: inherit; padding: 10px 12px; white-space: pre; tab-size: 2; overflow: auto; caret-color: var(--ambar); }
+  .editor .numeros, .editor textarea { line-height: 1.6; font-size: 13px; }
+  .modo { display: flex; justify-content: space-between; padding: 6px 2px 0; color: var(--dim); font-size: 12.5px; }
+  .modo .sujo { color: var(--ambar); }
+  .terminal { margin: 0; border: 1px solid var(--linha); padding: 12px 14px; height: 62vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 12.5px; }
+  .terminal .err { color: var(--vermelho); }
+
+  /* ---------- rodapé ---------- */
+  footer { flex: none; display: flex; align-items: center; gap: 16px; height: 28px; padding: 0 14px; border-top: 1px solid var(--linha); background: var(--bg2); color: var(--dim); font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+  footer #msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  footer #msg.ok { color: var(--verde); }
+  footer #msg.erro { color: #000; background: var(--vermelho); padding: 0 8px; white-space: normal; }
+  footer #msg.info { color: var(--ambar); }
+  footer kbd { font: inherit; color: var(--texto); }
+
+  @media (max-width: 700px) {
+    #barra .info span:not(:first-child) { display: none; }
+    main { padding: 16px; }
+    .passo { grid-template-columns: 1fr; }
+    .passo .marca-passo { margin-bottom: 4px; }
+    footer .atalhos { display: none; }
+    .linha-sub .n { width: 100px; }
+  }
+</style>
+</head>
+<body>
+<div id="barra">
+  <span class="marca">DATACEL//SRV<i>_</i></span>
+  <span class="info"><span id="i-maquina"></span><span id="i-uptime"></span><span id="i-mem"></span><span id="i-hora"></span></span>
+  <span id="controles">
+    <button data-janela="minimizar" title="Minimizar">_</button>
+    <button data-janela="maximizar" title="Maximizar">□</button>
+    <button data-janela="fechar" class="fechar" title="Fechar">×</button>
+  </span>
+</div>
+
+<nav id="abas">
+  <button data-aba="sites"><kbd>1</kbd>sites <span class="fraco" id="n-sites"></span></button>
+  <button data-aba="bots"><kbd>2</kbd>bots <span class="fraco" id="n-bots"></span></button>
+  <button data-aba="consumo"><kbd>3</kbd>consumo</button>
+  <button data-aba="dominio"><kbd>4</kbd>dominio</button>
+  <button data-aba="config" id="aba-config" hidden><kbd>5</kbd>config</button>
+  <span class="direita" id="status-geral"></span>
+</nav>
+
+<main>
+  <section data-pagina="sites">
+    <div class="cabeca">
+      <h1>sites</h1>
+      <p>sites estáticos servidos deste pc. arraste arquivos ou um .zip em [arquivos].</p>
+      <span class="acoes"><button class="cmd" data-acao="reiniciarSites">reiniciar servidor</button><button class="cmd forte" data-acao="novoSite"><kbd>n</kbd>ovo site</button></span>
+    </div>
+    <div class="tabela-wrap"><table>
+      <thead><tr><th>nome</th><th>porta</th><th>endereço</th><th>estado</th><th></th></tr></thead>
+      <tbody id="lista-sites"></tbody>
+    </table></div>
+  </section>
+
+  <section data-pagina="bots" hidden>
+    <div class="cabeca">
+      <h1>bots</h1>
+      <p>bots do discord e apps node. se um cair, volta sozinho.</p>
+      <span class="acoes"><button class="cmd forte" data-acao="novoBot"><kbd>n</kbd>ovo bot</button></span>
+    </div>
+    <div class="tabela-wrap"><table>
+      <thead><tr><th>nome</th><th>arquivo</th><th>estado</th><th class="num">mem</th><th class="num">cpu</th><th class="num">↺</th><th>avisos</th><th></th></tr></thead>
+      <tbody id="lista-bots"></tbody>
+    </table></div>
+  </section>
+
+  <section data-pagina="consumo" hidden>
+    <div class="cabeca">
+      <h1>consumo</h1>
+      <p>últimos 60 minutos · atualiza a cada 5s · cada bloco do gráfico é o pico daquele trecho.</p>
+    </div>
+    <div class="usos" id="usos-pc"></div>
+    <div class="cabeca"><h1>processos</h1><p>o que cada parte do servidor está usando.</p></div>
+    <div class="tabela-wrap"><table>
+      <thead><tr><th>processo</th><th>tipo</th><th class="num">cpu</th><th>cpu · 1h</th><th class="num">mem</th><th class="num">pico</th><th>mem · 1h</th></tr></thead>
+      <tbody id="lista-processos"></tbody>
+    </table></div>
+    <div class="cabeca" style="margin-top:28px"><h1>acessos aos sites</h1><p>visitas registradas pelo servidor de sites.</p></div>
+    <div class="tabela-wrap"><table>
+      <thead><tr><th>site</th><th>acessos/min · 1h</th><th class="num">acessos 1h</th><th class="num">visitantes 1h</th><th class="num">dados 1h</th><th class="num">erros 1h</th><th class="num">total</th></tr></thead>
+      <tbody id="lista-acessos"></tbody>
+    </table></div>
+  </section>
+
+  <section data-pagina="dominio" hidden>
+    <div class="cabeca">
+      <h1>dominio</h1>
+      <p>endereços próprios tipo blog.datacel.dev.br, com https, via túnel cloudflare.</p>
+    </div>
+    <div id="conteudo-dominio"></div>
+  </section>
+
+  <section data-pagina="config" hidden>
+    <div class="cabeca"><h1>config</h1><p>opções do aplicativo.</p></div>
+    <div class="tabela-wrap" id="conteudo-config"></div>
+  </section>
+</main>
+
+<footer>
+  <span id="msg">pronto.</span>
+  <span class="atalhos"><kbd>1-4</kbd> abas · <kbd>n</kbd> novo · <kbd>r</kbd> atualizar</span>
+</footer>
+
+<dialog id="janela"></dialog>
+<dialog id="pergunta"></dialog>
+
+<script>
+const DOMINIO_PADRAO = 'datacel.dev.br';
+function $(s, r = document) { return r.querySelector(s); }
+
+const app = window.janelaApp || null; // existe só dentro do aplicativo (Electron)
+if (app) {
+  document.body.classList.add('app');
+  $('#aba-config').hidden = false;
+  $('footer .atalhos').innerHTML = '<kbd>1-5</kbd> abas · <kbd>n</kbd> novo · <kbd>r</kbd> atualizar';
+  document.querySelectorAll('[data-janela]').forEach((b) => (b.onclick = () => app[b.dataset.janela]()));
+}
+
+// ---------- utilidades ----------
+let estado = null;
+let intervaloJanela = null;
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const mb = (b) => `${Math.round(b / 1048576)}M`;
+const gb = (b) => `${(b / 1073741824).toFixed(1)}G`;
+const tamanho = (b) => (b < 1024 ? `${b}B` : b < 1048576 ? `${(b / 1024).toFixed(1)}K` : `${(b / 1048576).toFixed(1)}M`);
+const barra = (f, n = 10) => '█'.repeat(Math.round(f * n)) + '░'.repeat(n - Math.round(f * n));
+const duracao = (s) => {
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  return d ? `${d}d ${String(h).padStart(2, '0')}h` : `${h}h ${String(m).padStart(2, '0')}m`;
+};
+
+// Mensagens aparecem na linha de status do rodapé.
+const GIRO = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
+let giro = null;
+function aviso(texto, tipo = 'ok') {
+  clearInterval(giro);
+  const el = $('#msg');
+  el.className = tipo;
+  if (tipo === 'info') {
+    let i = 0;
+    const desenhar = () => (el.textContent = `${GIRO[i++ % GIRO.length]} ${texto}`);
+    desenhar();
+    giro = setInterval(desenhar, 80);
+  } else {
+    el.textContent = `${tipo === 'erro' ? '[erro]' : '[ok]'} ${texto}`;
+  }
+  return { remove: () => { clearInterval(giro); if (el.className === 'info') { el.className = ''; el.textContent = 'pronto.'; } } };
+}
+
+async function api(metodo, url, corpo) {
+  const opcoes = { method: metodo };
+  if (corpo instanceof FormData) opcoes.body = corpo;
+  else if (corpo !== undefined) { opcoes.body = JSON.stringify(corpo); opcoes.headers = { 'Content-Type': 'application/json' }; }
+  let r;
+  try { r = await fetch(url, opcoes); } catch { aviso('o painel não respondeu.', 'erro'); throw new Error('rede'); }
+  const dados = await r.json().catch(() => ({}));
+  if (!r.ok) { aviso(dados.erro || `erro ${r.status}`, 'erro'); throw new Error(dados.erro); }
+  return dados;
+}
+
+function st(status, textos = {}) {
+  const classe = { online: 'on', parado: 'off', erro: 'err' }[status] || 'warn';
+  return `<span class="st ${classe}">${textos[status] || status}</span>`;
+}
+
+// ---------- janelas ----------
+function janelaPergunta(html) {
+  const d = $('#pergunta');
+  d.innerHTML = html;
+  d.showModal();
+  return d;
+}
+
+function topo(titulo, perigo = false) {
+  return `<div class="jan-topo ${perigo ? 'perigo' : ''}"><span class="titulo">${titulo}</span><button value="">esc</button></div>`;
+}
+
+function perguntar({ titulo, texto = '', rotulo, valor = '', placeholder = '', ajuda = '', botao = 'ok', sufixo = '' }) {
+  return new Promise((ok) => {
+    const d = janelaPergunta(`
+      <form method="dialog">
+        ${topo(esc(titulo))}
+        <div class="jan-corpo">
+          ${texto ? `<p>${texto}</p>` : ''}
+          <div class="campo">
+            ${rotulo ? `<label>${esc(rotulo)}</label>` : ''}
+            <div class="prompt"><input id="perg-valor" placeholder="${esc(placeholder)}" value="${esc(valor)}" autocomplete="off" spellcheck="false">${sufixo ? `<span class="sufixo">${esc(sufixo)}</span>` : ''}</div>
+            ${ajuda ? `<div class="ajuda">${ajuda}</div>` : ''}
+          </div>
+        </div>
+        <div class="jan-rodape"><button class="cmd" value="">cancelar</button><button class="cmd forte" value="ok">${esc(botao)}</button></div>
+      </form>`);
+    const campo = $('#perg-valor', d);
+    campo.focus(); campo.select();
+    d.onclose = () => ok(d.returnValue === 'ok' ? campo.value.trim() : null);
+  });
+}
+
+function confirmar({ titulo, texto, botao = 'confirmar', perigo = false }) {
+  return new Promise((ok) => {
+    const d = janelaPergunta(`
+      <form method="dialog">
+        ${topo(esc(titulo), perigo)}
+        <div class="jan-corpo"><p style="margin:0">${texto}</p></div>
+        <div class="jan-rodape"><button class="cmd" value="">cancelar</button><button class="cmd ${perigo ? 'perigo' : 'forte'}" value="ok">${esc(botao)}</button></div>
+      </form>`);
+    d.onclose = () => ok(d.returnValue === 'ok');
+  });
+}
+
+function abrirJanela({ titulo, corpo, acoes = '' }) {
+  const d = $('#janela');
+  d.className = 'largo';
+  d.innerHTML = `
+    <div class="jan-topo"><span class="titulo">${titulo}</span>${acoes}<button data-acao="fecharJanela">esc</button></div>
+    <div class="jan-corpo">${corpo}</div>`;
+  if (!d.open) d.showModal();
+  return d;
+}
+$('#janela').addEventListener('close', () => clearInterval(intervaloJanela));
+$('#janela').addEventListener('cancel', (e) => { if ($('#editor')?.dataset.mudou === '1' && !window.confirm('sair sem salvar?')) e.preventDefault(); });
+
+const nomeLimpo = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+
+// ---------- navegação e atalhos ----------
+const ABAS = ['sites', 'bots', 'consumo', 'dominio', 'config'];
+let abaAtual = 'sites';
+function irPara(aba) {
+  if (aba === 'config' && !app) aba = 'sites';
+  abaAtual = aba;
+  document.querySelectorAll('#abas button').forEach((b) => b.classList.toggle('ativo', b.dataset.aba === aba));
+  document.querySelectorAll('[data-pagina]').forEach((s) => (s.hidden = s.dataset.pagina !== aba));
+  if (aba === 'config') desenharConfig();
+  if (aba === 'consumo') desenharConsumo();
+  try { localStorage.setItem('aba', aba); } catch {}
+}
+document.querySelectorAll('#abas button').forEach((b) => (b.onclick = () => irPara(b.dataset.aba)));
+let abaSalva = 'sites';
+try { abaSalva = localStorage.getItem('aba') || 'sites'; } catch {}
+if (ABAS.includes(location.hash.slice(1))) abaSalva = location.hash.slice(1);
+irPara(abaSalva);
+
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.altKey || e.metaKey || document.querySelector('dialog[open]')) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  if (/^[1-5]$/.test(e.key) && (e.key !== '5' || app)) irPara(ABAS[Number(e.key) - 1]);
+  else if (e.key === 'n' && abaAtual === 'sites') acoes.novoSite();
+  else if (e.key === 'n' && abaAtual === 'bots') acoes.novoBot();
+  else if (e.key === 'r') { atualizar(); aviso('atualizado.'); }
+});
+
+function relogio() { $('#i-hora').textContent = new Date().toLocaleTimeString('pt-BR'); }
+relogio();
+setInterval(relogio, 1000);
+
+// ---------- desenho ----------
+async function atualizar() {
+  try { estado = await api('GET', '/api/estado'); } catch { return; }
+  const usado = 1 - estado.memoriaLivre / estado.memoriaTotal;
+  $('#i-maquina').textContent = estado.maquina.toLowerCase();
+  $('#i-uptime').textContent = `up ${duracao(estado.ligadoHa)}`;
+  $('#i-mem').innerHTML = `mem <span class="${usado > 0.9 ? 'vermelho' : usado > 0.75 ? 'ambar' : ''}">${barra(usado)}</span> ${gb(estado.memoriaTotal - estado.memoriaLivre)}/${gb(estado.memoriaTotal)}`;
+  $('#n-sites').textContent = estado.sites.length;
+  $('#n-bots').textContent = estado.bots.length;
+  const botsOn = estado.bots.filter((b) => b.status === 'online').length;
+  $('#status-geral').innerHTML = `${st(estado.servidorSites.status, { online: 'http', parado: 'http', erro: 'http' })}&nbsp;&nbsp;<span class="st ${botsOn ? 'on' : 'off'}">bots ${botsOn}/${estado.bots.length}</span>${estado.dominio.tunel ? `&nbsp;&nbsp;${st(estado.dominio.status, { online: 'túnel', parado: 'túnel', erro: 'túnel' })}` : ''}`;
+  desenharSites();
+  desenharBots();
+  desenharDominio();
+  app?.estado({ botsOn, bots: estado.bots.length, sites: estado.sites.length });
+}
+
+function desenharSites() {
+  const temDominio = Boolean(estado.dominio.nome && estado.dominio.tunel);
+  $('#lista-sites').innerHTML = estado.sites.length ? estado.sites.map((s) => {
+    let endereco;
+    if (s.endereco) endereco = `<a href="https://${esc(s.endereco)}" target="_blank">${esc(s.endereco)}</a>`;
+    else if (s.tunel.status === 'online') endereco = s.tunel.url ? `<a href="${esc(s.tunel.url)}" target="_blank">${esc(s.tunel.url.replace('https://', ''))}</a> <span class="fraco">(temporário)</span>` : '<span class="ambar">gerando link…</span>';
+    else endereco = `<a href="http://localhost:${s.porta}" target="_blank" class="dim">localhost:${s.porta}</a>`;
+    const noAr = s.endereco || s.tunel.status === 'online';
+    const botaoPublicar = temDominio
+      ? `<button class="cmd" data-acao="definirEndereco" data-nome="${s.nome}">endereço</button>`
+      : s.tunel.status === 'online'
+        ? `<button class="cmd" data-acao="tunelRapido" data-nome="${s.nome}" data-ligar="">despublicar</button>`
+        : `<button class="cmd" data-acao="tunelRapido" data-nome="${s.nome}" data-ligar="1">link rápido</button>`;
+    return `<tr>
+      <td><b>${esc(s.nome)}</b></td>
+      <td class="dim">${s.porta}</td>
+      <td>${endereco}</td>
+      <td>${noAr ? '<span class="st on">no ar</span>' : '<span class="st off">local</span>'}</td>
+      <td class="acoes-linha"><button class="cmd forte" data-acao="abrirArquivos" data-tipo="sites" data-nome="${s.nome}">arquivos</button>${botaoPublicar}<button class="cmd perigo" data-acao="apagar" data-tipo="sites" data-nome="${s.nome}">apagar</button></td>
+    </tr>`;
+  }).join('') : '<tr class="vazio-linha"><td colspan="5">nenhum site. aperte <b>n</b> para criar o primeiro.</td></tr>';
+}
+
+function desenharBots() {
+  $('#lista-bots').innerHTML = estado.bots.length ? estado.bots.map((b) => {
+    const rodando = b.status === 'online';
+    const avisos = [
+      !b.temToken && '<span class="st warn">sem token</span>',
+      b.instalando && '<span class="st warn">instalando…</span>',
+      !b.instalado && !b.instalando && '<span class="st warn">sem node_modules</span>',
+    ].filter(Boolean).join(' ') || '<span class="fraco">—</span>';
+    return `<tr>
+      <td><b>${esc(b.nome)}</b></td>
+      <td class="dim">${esc(b.principal)}</td>
+      <td>${st(b.status)}</td>
+      <td class="num">${rodando ? mb(b.mem) : '<span class="fraco">—</span>'}</td>
+      <td class="num">${rodando ? `${b.cpu}%` : '<span class="fraco">—</span>'}</td>
+      <td class="num ${b.reinicios ? 'ambar' : 'fraco'}">${b.reinicios}</td>
+      <td>${avisos}</td>
+      <td class="acoes-linha">${rodando
+        ? `<button class="cmd" data-acao="acaoBot" data-nome="${b.nome}" data-a="reiniciar">reiniciar</button><button class="cmd" data-acao="acaoBot" data-nome="${b.nome}" data-a="parar">parar</button>`
+        : `<button class="cmd forte" data-acao="acaoBot" data-nome="${b.nome}" data-a="iniciar">ligar</button>`}<button class="cmd" data-acao="abrirLogs" data-nome="${b.nome}">logs</button><button class="cmd" data-acao="abrirArquivos" data-tipo="bots" data-nome="${b.nome}">arquivos</button><button class="cmd" data-acao="configBot" data-nome="${b.nome}">config</button><button class="cmd" data-acao="instalar" data-nome="${b.nome}" ${b.instalando ? 'disabled' : ''}>npm i</button><button class="cmd perigo" data-acao="apagar" data-tipo="bots" data-nome="${b.nome}">apagar</button></td>
+    </tr>`;
+  }).join('') : '<tr class="vazio-linha"><td colspan="8">nenhum bot. aperte <b>n</b> para criar o primeiro.</td></tr>';
+}
+
+let ultimoDominio = '';
+function desenharDominio() {
+  const d = estado.dominio;
+  const chave = JSON.stringify([d.nome, d.conectado, d.entrando, d.linkLogin, d.tunel, d.status, estado.sites.map((s) => [s.nome, s.endereco])]);
+  if (chave === ultimoDominio) return; // não redesenha enquanto você digita
+  ultimoDominio = chave;
+
+  const p1 = d.conectado;
+  const p2 = Boolean(d.nome && d.tunel);
+  const p3 = estado.sites.some((s) => s.endereco);
+  const marca = (feito, atual, n) => `<span class="marca-passo">${feito ? '[x]' : atual ? '[>]' : '[ ]'} ${n}</span>`;
+  const classe = (feito, atual) => (feito ? 'feito' : atual ? 'atual' : 'bloqueado');
+
+  $('#conteudo-dominio').innerHTML = `<div class="passos">
+    <div class="passo ${classe(p1, !p1)}">
+      ${marca(p1, !p1, '01')}
+      <div>
+        <h2>colocar o domínio na cloudflare</h2>
+        ${p1 ? '<p style="margin:0">ok. este pc está conectado à sua conta.</p>' : `
+        <p>a cloudflare (grátis) liga o domínio a este pc sem abrir portas no roteador.</p>
+        <div class="aviso-bloco"><strong>atenção:</strong> <b>${DOMINIO_PADRAO}</b> já aponta para um site no google cloud. ao adicionar na cloudflare, confira se ela importou esse registro, senão ele sai do ar. os sites daqui vão em subdomínios (ex.: <b>bot.${DOMINIO_PADRAO}</b>).</div>
+        <ol>
+          <li>crie conta em <a href="https://dash.cloudflare.com/sign-up" target="_blank">dash.cloudflare.com</a> → <b>+ add</b> → <b>connect a domain</b> → <b>${DOMINIO_PADRAO}</b>. <span class="ambar">não use "register domain"</span> — esse é para comprar, e você já tem o domínio.</li>
+          <li>deixe <b>quick scan for dns records</b> marcado, escolha o plano <b>free</b> e confira se o registro <b>A → 34.111.179.208</b> foi importado.</li>
+          <li>anote os 2 nameservers que ela mostrar (ex.: ana.ns.cloudflare.com).</li>
+          <li><a href="https://registro.br/painel/" target="_blank">registro.br</a> → seu domínio → dns → <b>alterar servidores dns</b> → cole os 2.</li>
+          <li>espere a cloudflare marcar o domínio como <b>active</b>.</li>
+        </ol>
+        ${d.entrando
+          ? `<span class="ambar">aguardando autorização no navegador…</span> ${d.linkLogin ? `<a class="cmd" href="${esc(d.linkLogin)}" target="_blank">abrir de novo</a>` : ''}<button class="cmd" data-acao="cancelarLogin">cancelar</button>`
+          : '<button class="cmd forte" data-acao="loginCloudflare">conectar à cloudflare</button>'}`}
+      </div>
+    </div>
+    <div class="passo ${classe(p2, p1 && !p2)}">
+      ${marca(p2, p1 && !p2, '02')}
+      <div>
+        <h2>confirmar o domínio e criar o túnel</h2>
+        ${p1 ? `
+        <p>${p2 ? `túnel ${esc(d.tunel.slice(0, 8))}… ${st(d.status, { online: 'conectado', parado: 'parado', erro: 'com erro' })}` : 'cria o túnel seguro entre a cloudflare e este pc.'}</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="prompt" style="flex:1;min-width:220px"><input id="dominio-valor" value="${esc(d.nome || DOMINIO_PADRAO)}" spellcheck="false"></div>
+          <button class="cmd ${p2 ? '' : 'forte'}" data-acao="salvarDominio">${p2 ? 'trocar domínio' : 'confirmar e criar túnel'}</button>
+        </div>` : '<p style="margin:0">aguardando passo 01.</p>'}
+      </div>
+    </div>
+    <div class="passo ${classe(p3, p2 && !p3)}">
+      ${marca(p3, p2 && !p3, '03')}
+      <div>
+        <h2>escolher o endereço de cada site</h2>
+        ${p2 ? (estado.sites.length ? estado.sites.map((s) => `
+          <div class="linha-sub">
+            <span class="n"><b>${esc(s.nome)}</b></span>
+            <span class="v">${s.endereco ? `<a href="https://${esc(s.endereco)}" target="_blank">${esc(s.endereco)}</a>` : '<span class="fraco">sem endereço</span>'}</span>
+            <button class="cmd" data-acao="definirEndereco" data-nome="${s.nome}">${s.endereco ? 'alterar' : 'definir'}</button>
+          </div>`).join('') : '<p style="margin:0">crie um site primeiro.</p>') : '<p style="margin:0">aguardando passo 02.</p>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Gráfico em texto: cada coluna é o pico de um trecho do histórico. "·" = ainda sem dados.
+const BLOCOS = '▁▂▃▄▅▆▇█';
+function grafico(valores, colunas, teto) {
+  const tam = Math.max(1, Math.ceil(valores.length / colunas));
+  const inicio = Math.max(0, valores.length - colunas * tam);
+  const pontos = [];
+  for (let i = inicio; i < valores.length; i += tam) pontos.push(Math.max(...valores.slice(i, i + tam)));
+  const max = teto ?? Math.max(...pontos, 1);
+  const barras = pontos.map((v) => (v <= 0 ? '<span class="fraco">▁</span>' : BLOCOS[Math.min(7, Math.max(0, Math.round((v / max) * 7)))])).join('');
+  return `<span class="spark"><span class="fraco">${'·'.repeat(Math.max(0, colunas - pontos.length))}</span>${barras}</span>`;
+}
+
+const bytes = (b) => (b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : b < 1073741824 ? `${(b / 1048576).toFixed(1)} MB` : `${(b / 1073741824).toFixed(2)} GB`);
+const nomeProcesso = (p) => ({ painel: 'painel', sites: 'servidor de sites', tunel: 'túnel do domínio' }[p] || (p.startsWith('bot-') ? p.slice(4) : p.startsWith('tunel-') ? `link rápido ${p.slice(6)}` : p));
+
+async function desenharConsumo() {
+  let c;
+  try { c = await api('GET', '/api/consumo'); } catch { return; }
+  const ultimo = (l) => l[l.length - 1] ?? 0;
+  const pico = (l) => Math.max(0, ...l);
+  const cpuAgora = ultimo(c.cpu);
+  const memAgora = ultimo(c.mem);
+
+  $('#usos-pc').innerHTML = `
+    <div class="uso">
+      <div class="rot"><span>cpu do pc · ${c.nucleos} núcleos</span><span>pico ${pico(c.cpu)}%</span></div>
+      <div class="grande ${cpuAgora > 85 ? 'vermelho' : cpuAgora > 60 ? 'ambar' : ''}">${cpuAgora}%</div>
+      ${grafico(c.cpu, 60, 100)}
+    </div>
+    <div class="uso">
+      <div class="rot"><span>memória do pc</span><span>pico ${gb(pico(c.mem))}</span></div>
+      <div class="grande">${gb(memAgora)}<small>de ${gb(c.memTotal)} · ${Math.round((memAgora / c.memTotal) * 100)}%</small></div>
+      ${grafico(c.mem, 60, c.memTotal)}
+    </div>`;
+
+  const ordem = { painel: 0, http: 1, 'túnel': 2, bot: 3, outro: 4 };
+  const procs = c.processos.sort((a, b) => ordem[a.tipo] - ordem[b.tipo] || a.nome.localeCompare(b.nome));
+  $('#lista-processos').innerHTML = procs.length ? procs.map((p) => {
+    const ligado = ultimo(p.mem) > 0;
+    return `<tr>
+      <td><b>${esc(nomeProcesso(p.nome))}</b></td>
+      <td class="dim">${p.tipo}</td>
+      <td class="num">${ligado ? `${ultimo(p.cpu)}%` : '<span class="fraco">—</span>'}</td>
+      <td>${grafico(p.cpu, 36, Math.max(5, pico(p.cpu)))}</td>
+      <td class="num">${ligado ? mb(ultimo(p.mem)) : '<span class="st off">parado</span>'}</td>
+      <td class="num dim">${mb(pico(p.mem))}</td>
+      <td>${grafico(p.mem, 36)}</td>
+    </tr>`;
+  }).join('') : '<tr class="vazio-linha"><td colspan="7">coletando dados…</td></tr>';
+
+  $('#lista-acessos').innerHTML = c.sites.length ? c.sites.map((s) => `<tr>
+      <td><b>${esc(s.nome)}</b></td>
+      <td>${grafico(s.porMinuto, 30)}</td>
+      <td class="num">${s.req1h}</td>
+      <td class="num">${s.visitantes1h}</td>
+      <td class="num">${bytes(s.bytes1h)}</td>
+      <td class="num ${s.erros1h ? 'vermelho' : 'fraco'}">${s.erros1h}</td>
+      <td class="num dim">${s.reqTotal} · ${bytes(s.bytesTotal)}</td>
+    </tr>`).join('') : '<tr class="vazio-linha"><td colspan="7">nenhum site.</td></tr>';
+}
+
+async function desenharConfig() {
+  if (!app) return;
+  const cfg = await app.config();
+  $('#conteudo-config').innerHTML = `
+    <div class="opcao-cfg" data-acao="alternarCfg" data-chave="iniciarComWindows">
+      <span class="caixa">${cfg.iniciarComWindows ? '[x]' : '[ ]'}</span>
+      <div>iniciar com o windows<small>liga o painel, os sites e os bots quando você entra no windows (fica só na bandeja).</small></div>
+    </div>
+    <div class="opcao-cfg" data-acao="alternarCfg" data-chave="fecharParaBandeja">
+      <span class="caixa">${cfg.fecharParaBandeja ? '[x]' : '[ ]'}</span>
+      <div>fechar para a bandeja<small>o × esconde a janela em vez de sair. os bots continuam rodando de qualquer jeito.</small></div>
+    </div>
+    <div class="opcao-cfg" style="cursor:default">
+      <span class="caixa dim">dir</span>
+      <div>pasta do servidor<small>${esc(cfg.raiz)}</small></div>
+    </div>
+    <div class="opcao-cfg" style="cursor:default">
+      <span class="caixa dim">ver</span>
+      <div>versão do app<small>${esc(cfg.versao)}</small></div>
+    </div>`;
+}
+
+// ---------- ações ----------
+const acoes = {
+  fecharJanela: () => $('#janela').close(),
+
+  async alternarCfg({ chave }) {
+    const cfg = await app.config();
+    await app.definir(chave, !cfg[chave]);
+    aviso('configuração salva.');
+    desenharConfig();
+  },
+
+  async novoSite() {
+    let nome = await perguntar({ titulo: 'novo site', rotulo: 'nome', placeholder: 'meu-portfolio', ajuda: 'letras minúsculas, números e hífen.', botao: 'criar' });
+    if (!nome) return;
+    nome = nomeLimpo(nome);
+    await api('POST', '/api/sites', { nome });
+    aviso(`site ${nome} criado. envie os arquivos.`);
+    await atualizar();
+    acoes.abrirArquivos({ tipo: 'sites', nome });
+  },
+
+  async novoBot() {
+    const d = janelaPergunta(`
+      <form method="dialog">
+        ${topo('novo bot')}
+        <div class="jan-corpo">
+          <div class="campo"><label>nome</label><div class="prompt"><input id="bot-nome" placeholder="bot-musica" autocomplete="off" spellcheck="false"></div></div>
+          <div class="campo"><label>começar com</label>
+            <label class="radio"><input type="radio" name="modelo" value="1" checked><span class="caixa"></span><span>modelo pronto <span class="fraco">— discord.js com /ping</span></span></label>
+            <label class="radio"><input type="radio" name="modelo" value=""><span class="caixa"></span><span>pasta vazia <span class="fraco">— vou enviar meu código</span></span></label>
+          </div>
+        </div>
+        <div class="jan-rodape"><button class="cmd" value="">cancelar</button><button class="cmd forte" value="ok">criar</button></div>
+      </form>`);
+    $('#bot-nome', d).focus();
+    d.onclose = async () => {
+      if (d.returnValue !== 'ok') return;
+      const nome = nomeLimpo($('#bot-nome', d).value);
+      const modelo = Boolean(d.querySelector('input[name=modelo]:checked').value);
+      if (!nome) return aviso('dê um nome ao bot.', 'erro');
+      await api('POST', '/api/bots', { nome, modelo });
+      aviso(modelo ? `bot ${nome} criado. coloque o token.` : `bot ${nome} criado. envie os arquivos.`);
+      await atualizar();
+      modelo ? acoes.configBot({ nome }) : acoes.abrirArquivos({ tipo: 'bots', nome });
+    };
+  },
+
+  async apagar({ tipo, nome }) {
+    const ok = await confirmar({ titulo: `rm -rf ${tipo}/${nome}`, texto: `o ${tipo === 'sites' ? 'site' : 'bot'} <b>${esc(nome)}</b> e todos os arquivos dele serão apagados. não tem volta.`, botao: 'apagar', perigo: true });
+    if (!ok) return;
+    await api('DELETE', `/api/${tipo}/${nome}`);
+    aviso(`${nome} apagado.`);
+    atualizar();
+  },
+
+  async reiniciarSites() {
+    await api('POST', '/api/sites/reiniciar');
+    aviso('servidor de sites reiniciado.');
+    atualizar();
+  },
+
+  async tunelRapido({ nome, ligar }) {
+    await api(ligar ? 'POST' : 'DELETE', `/api/sites/${nome}/tunel`);
+    aviso(ligar ? 'gerando link temporário…' : `${nome} fora da internet.`);
+    atualizar();
+  },
+
+  async definirEndereco({ nome }) {
+    const site = estado.sites.find((s) => s.nome === nome);
+    const dom = estado.dominio.nome;
+    const atual = site.endereco ? (site.endereco === dom ? '' : site.endereco.slice(0, -dom.length - 1)) : nome;
+    const sub = await perguntar({
+      titulo: `endereço de ${nome}`, rotulo: 'subdomínio', valor: atual, sufixo: `.${dom}`, botao: 'salvar',
+      ajuda: `vazio = usar só ${esc(dom)} (substitui o que estiver lá hoje).`,
+    });
+    if (sub === null) return;
+    const carregando = aviso('configurando dns e túnel…', 'info');
+    try {
+      const { endereco } = await api('PUT', `/api/sites/${nome}/endereco`, { subdominio: nomeLimpo(sub) });
+      carregando.remove();
+      aviso(`${endereco} configurado. pode levar alguns segundos para responder.`);
+    } catch { carregando.remove(); }
+    atualizar();
+  },
+
+  async loginCloudflare() {
+    const { url } = await api('POST', '/api/dominio/login');
+    aviso('autorize no navegador e escolha datacel.dev.br.', 'info');
+    if (url) window.open(url, '_blank');
+    atualizar();
+  },
+
+  async cancelarLogin() { await api('DELETE', '/api/dominio/login'); aviso('cancelado.'); atualizar(); },
+
+  async salvarDominio() {
+    const carregando = aviso('criando túnel…', 'info');
+    try { await api('PUT', '/api/dominio', { dominio: $('#dominio-valor').value }); carregando.remove(); aviso('domínio configurado.'); }
+    catch { carregando.remove(); }
+    atualizar();
+  },
+
+  async acaoBot({ nome, a }) {
+    await api('POST', `/api/bots/${nome}/${a}`);
+    aviso({ iniciar: `${nome} ligado.`, reiniciar: `${nome} reiniciado.`, parar: `${nome} parado.` }[a]);
+    atualizar();
+  },
+
+  async instalar({ nome }) {
+    const carregando = aviso(`npm install em ${nome}…`, 'info');
+    let saida;
+    try { ({ saida } = await api('POST', `/api/bots/${nome}/instalar`)); } finally { carregando.remove(); }
+    aviso('dependências instaladas.');
+    abrirJanela({ titulo: `npm install — ${esc(nome)}`, corpo: `<pre class="terminal" style="height:auto;max-height:60vh">${esc(saida)}</pre>` });
+    atualizar();
+  },
+
+  configBot({ nome }) {
+    const b = estado.bots.find((x) => x.nome === nome);
+    const d = janelaPergunta(`
+      <form method="dialog">
+        ${topo(`config — ${esc(nome)}`)}
+        <div class="jan-corpo">
+          <div class="campo">
+            <label>discord_token ${b.temToken ? '<span class="st on" style="text-transform:none;letter-spacing:0">configurado</span>' : '<span class="st warn" style="text-transform:none;letter-spacing:0">vazio</span>'}</label>
+            <div class="prompt"><input type="password" id="cfg-token" placeholder="${b.temToken ? 'cole um novo para trocar' : 'cole o token aqui'}" autocomplete="off"></div>
+            <div class="ajuda"><a href="https://discord.com/developers/applications" target="_blank">discord.com/developers</a> → seu app → bot → reset token. fica salvo só neste pc, no .env.</div>
+          </div>
+          <div class="campo">
+            <label>arquivo principal</label>
+            <div class="prompt"><input id="cfg-principal" value="${esc(b.principal)}" spellcheck="false"></div>
+            <div class="ajuda">o que roda quando liga (index.js, bot.py…).</div>
+          </div>
+        </div>
+        <div class="jan-rodape"><button class="cmd" value="">cancelar</button><button class="cmd forte" value="ok">salvar</button></div>
+      </form>`);
+    d.onclose = async () => {
+      if (d.returnValue !== 'ok') return;
+      const token = $('#cfg-token', d).value.trim();
+      await api('PUT', `/api/bots/${nome}/config`, { token: token || undefined, principal: $('#cfg-principal', d).value.trim() });
+      aviso(b.status === 'online' ? 'salvo. reinicie o bot para aplicar.' : 'salvo. agora é só ligar.');
+      atualizar();
+    };
+  },
+
+  async abrirLogs({ nome }) {
+    const carregar = async () => {
+      const pre = $('#log');
+      if (!pre) return;
+      const { texto } = await api('GET', `/api/logs/bot-${nome}`);
+      const noFim = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+      const [saida, erros] = texto.split('\n\n===== ERROS =====\n');
+      pre.innerHTML = esc(saida || '(sem logs ainda)') + (erros ? `\n\n<span class="err">--- stderr ---\n${esc(erros)}</span>` : '');
+      if (noFim) pre.scrollTop = pre.scrollHeight;
+    };
+    abrirJanela({ titulo: `tail -f bot-${esc(nome)}`, corpo: '<pre class="terminal" id="log">carregando…</pre>' });
+    await carregar();
+    $('#log').scrollTop = 1e9;
+    clearInterval(intervaloJanela);
+    intervaloJanela = setInterval(carregar, 2000);
+  },
+
+  abrirArquivos: (d) => abrirArquivos(d.tipo, d.nome),
+  editar: (d) => editar(d.caminho),
+  apagarArquivo: (d) => apagarArquivo(d.caminho),
+  novoArquivo: () => novoArquivo(),
+  salvarArquivo: () => salvarArquivo(),
+  enviarArquivos: () => $('#inp-arq').click(),
+  enviarPasta: () => $('#inp-pasta').click(),
+};
+
+document.addEventListener('click', (e) => {
+  const alvo = e.target.closest('[data-acao]');
+  if (!alvo || alvo.disabled) return;
+  e.preventDefault();
+  acoes[alvo.dataset.acao]?.({ ...alvo.dataset });
+});
+
+// ---------- arquivos ----------
+let atual = { tipo: null, nome: null, caminho: null };
+const EDITAVEIS = /\.(html?|css|js|mjs|cjs|ts|json|md|txt|py|env|example|yml|yaml|xml|svg|toml|ini|cfg|sh|bat|ps1)$|^\.env/i;
+
+// Desenha a lista como o comando `tree`: ├── └── │
+function arvore(arquivos) {
+  const filhos = new Map();
+  for (const a of arquivos) {
+    const pai = a.caminho.includes('/') ? a.caminho.slice(0, a.caminho.lastIndexOf('/')) : '';
+    if (!filhos.has(pai)) filhos.set(pai, []);
+    filhos.get(pai).push(a);
+  }
+  for (const lista of filhos.values()) lista.sort((x, y) => (y.pasta - x.pasta) || x.caminho.localeCompare(y.caminho));
+  const linhas = [];
+  const andar = (pai, prefixo) => {
+    const lista = filhos.get(pai) || [];
+    lista.forEach((a, i) => {
+      const ultimo = i === lista.length - 1;
+      linhas.push({ ...a, ramo: prefixo + (ultimo ? '└── ' : '├── ') });
+      if (a.pasta) andar(a.caminho, prefixo + (ultimo ? '    ' : '│   '));
+    });
+  };
+  andar('', '');
+  return linhas;
+}
+
+async function abrirArquivos(tipo, nome) {
+  clearInterval(intervaloJanela);
+  atual = { tipo, nome, caminho: null };
+  const { arquivos } = await api('GET', `/api/arquivos/${tipo}/${nome}`);
+  const linhas = arvore(arquivos).map((a) => {
+    const base = a.caminho.split('/').pop();
+    const editavel = !a.pasta && EDITAVEIS.test(base);
+    const classes = ['nome-arq', a.pasta && 'pasta', editavel && 'editavel', base.startsWith('.env') && 'segredo'].filter(Boolean).join(' ');
+    return `<div class="no"><span class="ramo">${a.ramo}</span><span class="${classes}" ${editavel ? `data-acao="editar" data-caminho="${esc(a.caminho)}"` : ''}>${esc(base)}</span>
+      <span class="tam">${a.pasta ? '' : tamanho(a.tamanho)}</span><button class="cmd perigo" data-acao="apagarArquivo" data-caminho="${esc(a.caminho)}">rm</button></div>`;
+  }).join('');
+  const total = arquivos.filter((a) => !a.pasta).length;
+
+  const d = abrirJanela({
+    titulo: `~/${tipo}/${esc(nome)}`,
+    corpo: `
+      <div class="ferramentas">
+        <button class="cmd forte" data-acao="enviarArquivos">enviar arquivos</button>
+        <button class="cmd" data-acao="enviarPasta">enviar pasta</button>
+        <button class="cmd" data-acao="novoArquivo">novo arquivo</button>
+        <label class="radio check direita" style="padding:0"><input type="checkbox" id="extrair" checked><span class="caixa"></span>extrair .zip</label>
+        <input type="file" id="inp-arq" multiple hidden>
+        <input type="file" id="inp-pasta" webkitdirectory hidden>
+      </div>
+      <div class="zona" id="zona">
+        <div class="raiz-arvore">${esc(nome)}/</div>
+        ${arquivos.length ? linhas : '<div class="no fraco">└── (vazio — arraste arquivos, pastas ou um .zip para cá)</div>'}
+      </div>
+      <div class="modo"><span>${total} arquivo(s) · clique para editar</span><span>arraste para enviar</span></div>`,
+  });
+
+  $('#inp-arq', d).onchange = (e) => enviar([...e.target.files].map((f) => ({ arquivo: f, caminho: f.name })));
+  // Ao escolher uma pasta, os arquivos de dentro dela vão direto para a raiz.
+  $('#inp-pasta', d).onchange = (e) => enviar([...e.target.files].map((f) => ({ arquivo: f, caminho: f.webkitRelativePath.split('/').slice(1).join('/') })));
+
+  const zona = $('#zona', d);
+  let profundidade = 0;
+  zona.ondragenter = (e) => { e.preventDefault(); profundidade++; zona.classList.add('sobre'); };
+  zona.ondragover = (e) => e.preventDefault();
+  zona.ondragleave = () => { if (--profundidade <= 0) { profundidade = 0; zona.classList.remove('sobre'); } };
+  zona.ondrop = async (e) => {
+    e.preventDefault(); profundidade = 0; zona.classList.remove('sobre');
+    const entradas = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
+    const itens = [];
+    const unicaPasta = entradas.length === 1 && entradas[0].isDirectory;
+    for (const en of entradas) await lerEntrada(en, unicaPasta ? '' : null, itens);
+    enviar(itens);
+  };
+}
+
+function lerEntrada(entrada, prefixo, itens) {
+  const caminho = prefixo === null ? entrada.name : prefixo;
+  if (entrada.isFile) return new Promise((ok) => entrada.file((f) => { itens.push({ arquivo: f, caminho: caminho || f.name }); ok(); }, ok));
+  return new Promise((ok) => {
+    const leitor = entrada.createReader();
+    const todas = [];
+    const ler = () => leitor.readEntries(async (lote) => {
+      if (!lote.length) {
+        for (const filho of todas) await lerEntrada(filho, caminho ? `${caminho}/${filho.name}` : filho.name, itens);
+        return ok();
+      }
+      todas.push(...lote);
+      ler();
+    }, ok);
+    ler();
+  });
+}
+
+async function enviar(itens) {
+  itens = itens.filter((i) => i.caminho && !i.caminho.split('/').includes('node_modules'));
+  if (!itens.length) return;
+  const fd = new FormData();
+  fd.append('extrair', $('#extrair')?.checked ? 'sim' : 'nao');
+  for (const i of itens) { fd.append('caminhos', i.caminho); fd.append('arquivos', i.arquivo); }
+  const carregando = aviso(`enviando ${itens.length} arquivo(s)…`, 'info');
+  let total;
+  try { ({ total } = await api('POST', `/api/upload/${atual.tipo}/${atual.nome}`, fd)); } finally { carregando.remove(); }
+  aviso(`${total} arquivo(s) salvos.`);
+  abrirArquivos(atual.tipo, atual.nome);
+}
+
+async function apagarArquivo(caminho) {
+  const ok = await confirmar({ titulo: `rm ${caminho}`, texto: `apagar <b>${esc(caminho)}</b>?`, botao: 'apagar', perigo: true });
+  if (!ok) return;
+  await api('DELETE', `/api/arquivo/${atual.tipo}/${atual.nome}?caminho=${encodeURIComponent(caminho)}`);
+  aviso(`${caminho} apagado.`);
+  abrirArquivos(atual.tipo, atual.nome);
+}
+
+async function novoArquivo() {
+  const caminho = await perguntar({ titulo: 'touch', rotulo: 'nome do arquivo', placeholder: 'css/estilo.css', ajuda: 'pode incluir pastas.', botao: 'criar' });
+  if (!caminho) return;
+  await api('PUT', `/api/arquivo/${atual.tipo}/${atual.nome}?caminho=${encodeURIComponent(caminho)}`, { conteudo: '' });
+  editar(caminho);
+}
+
+async function editar(caminho) {
+  const { conteudo } = await api('GET', `/api/arquivo/${atual.tipo}/${atual.nome}?caminho=${encodeURIComponent(caminho)}`);
+  atual.caminho = caminho;
+  const d = abrirJanela({
+    titulo: `edit ~/${atual.tipo}/${esc(atual.nome)}/${esc(caminho)}`,
+    acoes: `<button data-acao="abrirArquivos" data-tipo="${atual.tipo}" data-nome="${atual.nome}">← voltar</button><button data-acao="salvarArquivo">salvar</button>`,
+    corpo: `<div class="editor"><div class="numeros" id="numeros"></div><textarea id="editor" spellcheck="false"></textarea></div>
+      <div class="modo"><span id="modo-estado">-- editando --</span><span id="modo-pos"></span></div>`,
+  });
+  const ed = $('#editor', d);
+  const nums = $('#numeros', d);
+  const numerar = () => { nums.textContent = Array.from({ length: ed.value.split('\n').length }, (_, i) => i + 1).join('\n'); };
+  const posicao = () => {
+    const antes = ed.value.slice(0, ed.selectionStart).split('\n');
+    $('#modo-pos').textContent = `${antes.length}:${antes[antes.length - 1].length + 1} · ctrl+s salvar · esc sair`;
+  };
+  ed.value = conteudo;
+  numerar(); posicao();
+  ed.oninput = () => { numerar(); posicao(); ed.dataset.mudou = '1'; $('#modo-estado').innerHTML = '<span class="sujo">-- modificado --</span>'; };
+  ed.onclick = ed.onkeyup = posicao;
+  ed.onscroll = () => { nums.scrollTop = ed.scrollTop; };
+  ed.onkeydown = (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); ed.setRangeText('  ', ed.selectionStart, ed.selectionEnd, 'end'); ed.oninput(); }
+    if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); salvarArquivo(); }
+  };
+  ed.focus();
+}
+
+async function salvarArquivo() {
+  const ed = $('#editor');
+  await api('PUT', `/api/arquivo/${atual.tipo}/${atual.nome}?caminho=${encodeURIComponent(atual.caminho)}`, { conteudo: ed.value });
+  ed.dataset.mudou = '';
+  $('#modo-estado').textContent = '-- salvo --';
+  aviso(atual.tipo === 'bots' ? `${atual.caminho} salvo. reinicie o bot para aplicar.` : `${atual.caminho} salvo.`);
+}
+
+atualizar();
+setInterval(() => {
+  if (document.hidden) return;
+  atualizar();
+  if (abaAtual === 'consumo') desenharConsumo();
+}, 4000);
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "datacel-servidor",
+  "productName": "Datacel Servidor",
+  "version": "1.0.0",
+  "description": "Painel do servidor Datacel: sites, bots e domínio",
+  "author": "Datacel",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "instalador": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "44.9.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "br.dev.datacel.servidor",
+    "productName": "Datacel Servidor",
+    "files": ["main.js", "preload.js", "icone.png"],
+    "directories": { "output": "dist" },
+    "win": { "target": "nsis", "icon": "icone.png" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Datacel Servidor"
+    }
+  }
+}
